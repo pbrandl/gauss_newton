@@ -2,5 +2,5 @@
 
 Gauss-Newton algorithm from scratch only relying on numpy. The algorithm optimizes the parameters based on some observations/samples. The exemplary plot shows the a polyonmial with estimated paramters in blue. The samples were drawn from a given polynomial and some noise was added.
 
-<img src="https://github.com/pbrandl/gauss_newton/blob/main/GN_opt.png" width="100" height="100" alt="Plot">
+<img src="https://github.com/pbrandl/gauss_newton/blob/main/GN_opt.png" width="400" height="400" alt="Plot">
 
