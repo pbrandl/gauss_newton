@@ -1,31 +1,70 @@
 # Gauss-Newton
 
-A Gauss-Newton algorithm written from scratch, using only numpy. It fits a model's parameters to a set of observations, computing the Jacobian with finite differences (forward, backward or central).
+[![CI](https://github.com/pbrandl/gauss_newton/actions/workflows/ci.yml/badge.svg)](https://github.com/pbrandl/gauss_newton/actions/workflows/ci.yml)
 
-The example draws noisy samples from a random polynomial and fits a polynomial to them. In the plot, the fitted polynomial is blue, the true polynomial is orange and the noisy samples are dots.
+A Gauss-Newton optimizer for nonlinear least-squares problems, written from scratch with NumPy as its only dependency. The Jacobian is approximated with forward, backward or central finite differences, so any model of the form `model(params, x)` can be fitted without providing derivatives.
 
 <p align="center">
-  <img src="GN_opt.png" width="70%" alt="Fitted polynomial vs. ground truth">
+  <img src="docs/example_fit.png" width="70%" alt="Gauss-Newton fit of a degree-5 polynomial to noisy samples">
 </p>
+
+## Installation
+
+```bash
+git clone https://github.com/pbrandl/gauss_newton.git
+cd gauss_newton
+pip install .
+```
 
 ## Usage
 
-```bash
-pip install -r requirements.txt
-python main.py
-```
-
-Using the optimizer with your own model:
-
 ```python
-from gaussnewton import GaussNewton
+import numpy as np
+from gauss_newton import GaussNewton
 
-gn = GaussNewton(error_fun, max_iteration=40, tolerance=1e-4, method="central")
-param_opt = gn.fit(model, init_param, target, samples)  # model(param, samples) -> predictions
+
+def model(params, x):
+    amplitude, rate, offset = params
+    return amplitude * np.exp(-rate * x) + offset
+
+
+x = np.linspace(0, 4, 40)
+y = model([2.0, 1.5, 0.5], x) + np.random.default_rng(0).normal(0, 0.05, x.size)
+
+result = GaussNewton(method="central").fit(model, x, y, initial_params=[1.0, 1.0, 0.0])
+print(result.params, result.converged, result.n_iterations, result.error)
 ```
 
-## Files
+`GaussNewton` options:
 
-- `gaussnewton.py`: the `GaussNewton` optimizer
-- `polynomial.py`: a simple polynomial model
-- `main.py`: example that fits a polynomial to noisy samples and plots the result
+| Argument         | Default     | Description                                                   |
+| ---------------- | ----------- | ------------------------------------------------------------- |
+| `error_fun`      | `rmse`      | Metric `error_fun(target, prediction)` used for convergence   |
+| `max_iterations` | `100`       | Maximum number of Gauss-Newton steps                          |
+| `tolerance`      | `1e-8`      | Stop when the error changes by at most this amount            |
+| `method`         | `"central"` | Finite-difference scheme: `"forward"`, `"backward"`, `"central"` |
+| `step`           | `1e-6`      | Finite-difference step width                                  |
+
+`fit` returns a `FitResult` with the optimized `params`, a `converged` flag, `n_iterations`, the error `history` and the final `error`. Progress is reported through the standard `logging` module under the `gauss_newton` logger.
+
+## Example
+
+The plot above was made with the polynomial example script, which fits a polynomial to noisy samples of a random polynomial:
+
+```bash
+pip install ".[examples]"
+python examples/polynomial_fit.py --seed 1
+```
+
+Run `python examples/polynomial_fit.py --help` for options such as the degree, the number of samples, the noise level and saving the plot to a file.
+
+## Development
+
+```bash
+pip install -e ".[dev]"
+python -m pytest
+ruff check . && ruff format --check .
+python -m mypy
+```
+
+CI runs these checks on every push and pull request.
