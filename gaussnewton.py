@@ -1,71 +1,73 @@
-from typing import Callable
+from typing import Callable, List
+
 import numpy as np
 
+METHODS = ("forward", "backward", "central")
 
-class GaussNewton(object):
-    def __init__(self, error_fun: Callable, max_iteration: int = 10, tolerance: float = 1e-2, method: str = 'forward'):
-        assert max_iteration >= 1, "Maximum number of iterations must be set to greater equal 1."
+
+class GaussNewton:
+    """Gauss-Newton optimizer using finite-difference Jacobians."""
+
+    def __init__(self, error_fun: Callable, max_iteration: int = 10, tolerance: float = 1e-2,
+                 method: str = "forward"):
+        if max_iteration < 1:
+            raise ValueError("max_iteration must be >= 1.")
+        if method not in METHODS:
+            raise ValueError(f"method must be one of {METHODS}, got {method!r}.")
 
         self.error_fun = error_fun
         self.max_iteration = max_iteration
         self.tolerance = tolerance
         self.method = method
-
-        self.rmse_history = []
+        self.error_history: List[float] = []
 
     def fit(self, model: Callable, param: np.ndarray, target: np.ndarray, samples: np.ndarray) -> np.ndarray:
         """
-        Fit the model to y given some inital parameters.
+        Fit the model to the target values, starting from some initial parameters.
 
-        :param model: The model to be fit. Callable function.
-        :param param: Parameters of the model.
+        :param model: Callable ``model(param, samples)`` returning predictions.
+        :param param: Initial parameters (column vector). Not modified.
         :param target: Target values.
+        :param samples: Input data passed to the model.
         :return: Optimized parameters.
         """
+        param = np.array(param, dtype=float)
+        self.error_history = [self.error_fun(target, model(param, samples))]
 
         for i in range(self.max_iteration):
-            # Compute RMSE
-            prediction = model(param, samples)
-            rmse0 = self.error_fun(prediction, target)
-            self.rmse_history.append(rmse0)
-
-            # Optimize parameters
             residuals = (target - model(param, samples)).reshape(-1, 1)
             J = self.jacobian(model, param, samples)
-            param -= np.linalg.inv(J @ J.T) @ J @ residuals
+            param -= np.linalg.solve(J @ J.T, J @ residuals)
 
-            # Check if convergence criterium is reached
-            rmse1 = self.error_fun(prediction, target)
-            if abs(rmse0 - rmse1) <= self.tolerance:
-                print("Non-changing: Converged at iteration", i)
+            error = self.error_fun(target, model(param, samples))
+            self.error_history.append(error)
+            if abs(self.error_history[-2] - error) <= self.tolerance:
+                print(f"Converged at iteration {i}.")
                 break
 
-            self.rmse_history.append(rmse0)
-        print('RMSE: {:.2f}'.format(self.rmse_history[-1]))
+        print(f"Error: {self.error_history[-1]:.4f}")
         return param
 
-    def jacobian(self, f, param, x, step: float = 1e-03):
+    def jacobian(self, f: Callable, param: np.ndarray, x: np.ndarray, step: float = 1e-3) -> np.ndarray:
         """
-        Compute the Jacobian matrix as J_ij = d(r_i)/d(param_j).
+        Compute the Jacobian of the residuals r = y - f(param, x), i.e. J_ij = d(r_j)/d(param_i).
 
-        :param f: Callable function.
-        :param param: Parameter of the function.
-        :param x: Input data to the function
+        :param f: Model function.
+        :param param: Parameters of the function (column vector).
+        :param x: Input data to the function.
         :param step: Step width for finite differences.
-        :return: The Jacobian matrix of shape n_parameter x n_x
+        :return: The Jacobian matrix of shape (n_parameters, n_samples).
         """
         n = param.shape[0]
         J = []
-        for i, disturb in enumerate(np.eye(n).reshape(n, 1, n)):
-            if self.method == 'forward':
-                fd = (f(param, x) - f(param + step * disturb.T, x)) / step
-            elif self.method == 'backward':
-                fd = (f(param - step * disturb.T, x) - f(param, x)) / step
-            elif self.method == 'central':
-                fd = (f(param - step * disturb.T, x) - f(param + step * disturb.T, x)) / (2 * step)
-            else:
-                raise Exception("Given method not one of foward, backward or central.")
-
+        for disturb in np.eye(n):
+            h = step * disturb.reshape(param.shape)
+            if self.method == "forward":
+                fd = (f(param, x) - f(param + h, x)) / step
+            elif self.method == "backward":
+                fd = (f(param - h, x) - f(param, x)) / step
+            else:  # central
+                fd = (f(param - h, x) - f(param + h, x)) / (2 * step)
             J.append(fd.flatten())
 
         return np.asarray(J)
