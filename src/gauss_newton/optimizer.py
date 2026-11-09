@@ -33,12 +33,15 @@ class FitResult:
         converged: Whether the change in error fell below the tolerance.
         n_iterations: Number of Gauss-Newton steps performed.
         history: Error before the first step followed by the error after each step.
+        params_history: Initial parameters followed by the parameters after each step,
+            aligned with ``history``.
     """
 
     params: NDArray[np.float64]
     converged: bool
     n_iterations: int
     history: list[float]
+    params_history: list[NDArray[np.float64]]
 
     @property
     def error(self) -> float:
@@ -160,6 +163,7 @@ class GaussNewton:
 
         residuals, error = evaluate(params)
         history = [error]
+        params_history = [params]
         converged = False
         iteration = 0
 
@@ -171,6 +175,7 @@ class GaussNewton:
 
             residuals, error = evaluate(params)
             history.append(error)
+            params_history.append(params)
             logger.debug("Iteration %d: error %.6g", iteration, error)
 
             if not np.isfinite(error):
@@ -186,5 +191,9 @@ class GaussNewton:
             logger.warning("Did not converge within %d iterations.", self.max_iterations)
 
         return FitResult(
-            params=params, converged=converged, n_iterations=iteration, history=history
+            params=params,
+            converged=converged,
+            n_iterations=iteration,
+            history=history,
+            params_history=params_history,
         )

@@ -4,9 +4,12 @@
 
 A Gauss-Newton optimizer for nonlinear least-squares problems, written from scratch with NumPy as its only dependency. The Jacobian is approximated with forward, backward or central finite differences, so any model of the form `model(params, x)` can be fitted without providing derivatives.
 
-<p align="center">
-  <img src="docs/example_fit.png" width="70%" alt="Gauss-Newton fit of a degree-5 polynomial to noisy samples">
-</p>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/convergence-dark.svg">
+  <img src="docs/convergence-light.svg" width="100%" alt="Left: noisy samples of a damped oscillation with the model curve after each Gauss-Newton iteration, moving from the initial guess to the final fit. Right: RMSE per iteration, falling from 0.456 to 0.100 within four iterations.">
+</picture>
+
+<sub>Fitting <i>y = a·e<sup>−bx</sup>·cos(ωx)</i> to 60 noisy samples. Darker curves are later iterations; the error settles after four steps.</sub>
 
 ## Installation
 
@@ -45,18 +48,17 @@ print(result.params, result.converged, result.n_iterations, result.error)
 | `method`         | `"central"` | Finite-difference scheme: `"forward"`, `"backward"`, `"central"` |
 | `step`           | `1e-6`      | Finite-difference step width                                  |
 
-`fit` returns a `FitResult` with the optimized `params`, a `converged` flag, `n_iterations`, the error `history` and the final `error`. Progress is reported through the standard `logging` module under the `gauss_newton` logger.
+`fit` returns a `FitResult` with the optimized `params`, a `converged` flag, `n_iterations`, the error `history`, the parameters after each step (`params_history`) and the final `error`. Progress is reported through the standard `logging` module under the `gauss_newton` logger.
 
-## Example
-
-The plot above was made with the polynomial example script, which fits a polynomial to noisy samples of a random polynomial:
+## Examples
 
 ```bash
 pip install ".[examples]"
-python examples/polynomial_fit.py --seed 1
+python examples/damped_oscillation.py   # the figure above
+python examples/polynomial_fit.py       # polynomial fit to noisy samples
 ```
 
-Run `python examples/polynomial_fit.py --help` for options such as the degree, the number of samples, the noise level and saving the plot to a file.
+Both scripts accept `--seed`, `--noise`, `--theme light|dark` and `--output FILE` to save the plot instead of showing it; run them with `--help` for all options.
 
 ## Development
 

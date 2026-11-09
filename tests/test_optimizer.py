@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from gauss_newton import GaussNewton, Polynomial, finite_difference_jacobian
+from gauss_newton import GaussNewton, Polynomial, finite_difference_jacobian, rmse
 
 METHODS = ["forward", "backward", "central"]
 
@@ -63,6 +63,20 @@ def test_history_is_monotonic_for_nonlinear_model():
 
     assert len(result.history) == result.n_iterations + 1
     assert np.all(np.diff(result.history) <= 1e-12)
+
+
+def test_params_history_matches_error_history():
+    x = np.linspace(0.0, 4.0, 40)
+    y = exponential_decay([2.0, 1.5, 0.5], x)
+    initial_params = [1.0, 1.0, 0.0]
+
+    result = GaussNewton().fit(exponential_decay, x, y, initial_params)
+
+    assert len(result.params_history) == len(result.history)
+    np.testing.assert_array_equal(result.params_history[0], initial_params)
+    np.testing.assert_array_equal(result.params_history[-1], result.params)
+    for params, error in zip(result.params_history, result.history, strict=True):
+        assert rmse(y, exponential_decay(params, x)) == pytest.approx(error)
 
 
 def test_does_not_modify_initial_params_and_preserves_shape():
